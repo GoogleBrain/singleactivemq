@@ -1,0 +1,3 @@
+1.tomcat :http://localhost:8080/ActiveMQSpringDemo/index.jsp
+2.im.avtivemq中的Receive.java和Sender.java是简单的接收者和发送者。其余的java和配置文件是activemq+spring整合的。
+3.这个目前是单节点的activemq;

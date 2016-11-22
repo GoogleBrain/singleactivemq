@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:amq="http://activemq.apache.org/schema/core"
+	xmlns:jms="http://www.springframework.org/schema/jms"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans   
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd   
+        http://www.springframework.org/schema/context   
+        http://www.springframework.org/schema/context/spring-context-4.0.xsd
+        http://www.springframework.org/schema/jms
+        http://www.springframework.org/schema/jms/spring-jms-4.0.xsd
+        http://activemq.apache.org/schema/core
+        http://activemq.apache.org/schema/core/activemq-core-5.8.0.xsd">
+
+	<amq:connectionFactory id="amqConnectionFactory"
+		brokerURL="tcp://127.0.0.1:61616" userName="admin" password="admin"
+		optimizeAcknowledge="true" optimizeAcknowledgeTimeOut="30000">
+		<amq:redeliveryPolicy>
+			<amq:redeliveryPolicy maximumRedeliveries="2"
+				initialRedeliveryDelay="1000" useExponentialBackOff="true"
+				backOffMultiplier="5" />
+		</amq:redeliveryPolicy>
+	</amq:connectionFactory>
+
+	<bean id="connectionFactory"
+		class="org.springframework.jms.connection.CachingConnectionFactory">
+		<property name="targetConnectionFactory" ref="amqConnectionFactory"></property>
+		<property name="sessionCacheSize" value="100" />
+	</bean>
+
+	<!-- Queue START -->
+	<bean id="jmsQueueTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<constructor-arg ref="connectionFactory" />
+		<property name="pubSubDomain" value="false" />
+		<property name="deliveryMode" value="2" /><!-- 发送模式 DeliveryMode.NON_PERSISTENT=1:非持久 
+			; DeliveryMode.PERSISTENT=2:持久 -->
+	</bean>
+	<bean id="notifyQueue" class="org.apache.activemq.command.ActiveMQQueue">
+		<constructor-arg value="test.queue?customer.prefetchSize=1000" />
+	</bean>
+	<bean id="advancedQueueContainer"
+		class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="connectionFactory" />
+		<property name="destination" ref="notifyQueue" />
+		<property name="messageListener" ref="queueReceiver1" />
+		<!-- 配置消费者的数量 -->
+		<property name="concurrentConsumers" value="500" />
+		<property name="maxConcurrentConsumers" value="800" />
+		<property name="sessionAcknowledgeModeName" value="AUTO_ACKNOWLEDGE" />
+	</bean>
+	<!-- Queue END -->
+
+	<!-- TOPIC START -->
+	<bean id="jmsTopicTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<constructor-arg ref="connectionFactory" />
+		<property name="pubSubDomain" value="true" />
+	</bean>
+	<jms:listener-container destination-type="topic"
+		container-type="default" connection-factory="connectionFactory"
+		acknowledge="auto">
+		<jms:listener destination="test.topic" ref="topicReceiver1" />
+		<jms:listener destination="test.topic" ref="topicReceiver2" />
+	</jms:listener-container>
+	<!-- TOPIC END -->
+</beans>  
